@@ -1,0 +1,346 @@
+---
+title: "COVID-19 Regional Monthly Report"
+author: "Clinton Tedja"
+date: "A fully automated and reproducible report. `r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+<style>
+body, h1, h2, h3, h4 {
+    font-family: "Open Sans", serif;
+}
+
+body {
+    color: #031c2d;
+}
+h1 {
+    color: #085387;
+}
+a, a:hover {
+    color: #c2dbec;
+}
+pre {
+    font-size: 10px;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r data, include = FALSE}
+library(tidyverse)
+library(data.table)
+library(lubridate)
+library(knitr)
+library(kableExtra)
+library(sf)
+library(rnaturalearth)
+library(plotly)
+
+
+# this time-series dataset, of confirmed cases is updated daily
+# by John Hopkins University
+raw_jhu_conf <- read.csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"))
+raw_jhu_reco <- read.csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"))
+raw_jhu_deat <- read.csv(url("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"))
+
+# I'm also creating here a quick function to enable simpler display of numerics in any text, plus removing scientific notation throughout
+custom_number_format <- function(x){ifelse(x > 999999, paste(format(round((x/1000000), 1), nsmall=1, big.mark=","),"M"), format(round(x), nsmall=0, big.mark=","))}
+
+options(scipen=10000)
+
+
+```
+
+```{r Tidying, include = FALSE}
+# This report takes the following as countries of interest.
+# You can easily swap out countries for those you are interested in to make up your regional report.
+
+countries_in_region <- c("Afghanistan", "Bangladesh", "Bhutan",
+                    "Cambodia", "India", "Indonesia", "Laos",
+                    "Myanmar", "Malaysia", "Mongolia",
+                    "Nepal", "Philippines", "Pakistan", "Vietnam",
+                    "Sri Lanka", "Timor-Leste", "Thailand",
+                    "Maldives", "Fiji", "Kiribati", "Marshall Islands",
+                    "Micronesia", "Nauru", "Palau", "Papua New Guinea",
+                    "Samoa", "Solomon Islands", "Tonga", "Vanuatu")
+
+# We'll first define 'case_region' as all confirmed cases for select countries
+#   NB: tidying here to fix dates are due to dates coming in with:
+#   [1] wide format; [2] 'X' in dates; [3] and non-standard dates
+
+case_region <- (raw_jhu_conf %>% 
+  pivot_longer(names_to = "date", 
+               values_to = "cases", 
+               cols = -c(Province.State, Country.Region, Lat, Long)) %>%
+  mutate(date = as.Date(str_remove(date, "X"), 
+                        format = "%m.%d.%y")) %>%
+  rename(country = Country.Region) %>%
+  # then, since i'm only interested in my organization's regional operations
+  filter(country %in% countries_in_region)) %>%
+  # we'll tidy the recovered df before joining
+  left_join(
+  (raw_jhu_reco %>% 
+        pivot_longer(names_to = "date", 
+                     values_to = "cases", 
+                     cols = -c(Province.State, Country.Region, Lat, Long)) %>%
+        mutate(date = as.Date(str_remove(date, "X"), 
+                              format = "%m.%d.%y")) %>%
+        rename(country = Country.Region, recovered = cases) %>%
+        select(-Lat, -Long, -Province.State)), 
+  by = c("country", "date")) %>%
+  # and tidy the deaths df before joining
+  left_join(
+  (raw_jhu_deat %>% 
+        pivot_longer(names_to = "date", 
+                     values_to = "cases", 
+                     cols = -c(Province.State, Country.Region, Lat, Long)) %>%
+        mutate(date = as.Date(str_remove(date, "X"), 
+                              format = "%m.%d.%y")) %>%
+        rename(country = Country.Region, deaths = cases) %>%
+        select(-Lat, -Long, -Province.State)), 
+     by = c("country", "date"))
+
+# Then, seeing that we only have a cumulative count, let's add a daily increase
+case_region <- case_region %>% 
+  group_by(country) %>% 
+  mutate(new_cases = c(cases[1],diff(cases)),
+         new_recov = c(recovered[1],diff(recovered)),
+         new_death = c(deaths[1],diff(deaths)))
+
+
+```
+
+```{r cumulative counts, include = FALSE}
+# This df here is an aggregate number of cumulative cases at the end of each month
+cases_month_end_agg <- case_region %>%
+  group_by(date) %>% 
+  summarize(agg_cases = sum(cases)) %>%
+  mutate(month = floor_date(date, "month")) %>%
+  group_by(month)%>%
+  summarize(max = max(agg_cases))%>%
+  arrange(max)
+
+# This df here is the number of cumulative cases at the end of each month, disaggregated by country
+cases_month_end_countries <- case_region %>%
+  mutate(month = floor_date(date, "month")) %>%
+  group_by(month, country)%>%
+  summarize(max = max(cases))%>%
+  arrange(max)
+
+# And an accompanying df pulling just those values at the end of last month, to build our narrative.
+cases_month_end_countries_last <- cases_month_end_countries %>%
+  filter(month == floor_date(Sys.Date(), "month") - months(1))
+
+
+
+```
+
+
+
+# Overview
+The number of cumulative COVID-19 cases in operational and oversight countries in the region at the end of `r format(floor_date(Sys.Date(), "month") - months(1), format = "%B %Y")`, stood at `r custom_number_format(nth(cases_month_end_agg$max, -2))`. This is an increase of `r custom_number_format(nth(cases_month_end_agg$max, -2) - nth(cases_month_end_agg$max, -3))` compared with the end of `r (format(floor_date(Sys.Date()) - months(2), format = "%B %Y"))`. The two countries with the highest number of cases were `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -1), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -1))` cases) followed by `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -2), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -2))`). 
+
+
+```{r Building the Map, echo = FALSE, results = 'HIDE',message = FALSE, warning = FALSE}
+
+# Here we'll use the rnaturalearth, sf and plotly packages to create a map.
+cases_asia_map <- ne_countries(scale = "medium", returnclass = "sf") %>%
+  right_join(cases_month_end_countries_last,
+             by = c("sovereignt" = "country")) %>%
+  select(max, name, geometry)%>%
+  na.omit()
+
+cases_asia_map <- cbind(cases_asia_map, st_coordinates(st_centroid(cases_asia_map)))
+
+
+# And the resulting plot:
+ggplotly(
+  (ggplot(cases_asia_map) +
+    geom_sf(fill = "#dfe3e6", color = "#ffffff") +
+    geom_point(aes(x = X, y = Y, size = max, name = name, text = paste("In", name, "there were", custom_number_format(max), "cumulative cases at the end of last month.")), color = "#85b7da") +
+    coord_sf(xlim = c(60,180), expand = FALSE) +
+    theme_void() + 
+    theme(
+      legend.position = "none",
+      axis.line = element_blank()) +
+    scale_size(range = c(0, 12)) +
+    labs(caption = 'Cumulative case count at the end of last month')),
+  tooltip = "text"
+)
+
+```
+
+
+```{r Table, echo = FALSE}
+
+# And using kable here, we build a simple table.
+
+
+kable(
+  (cases_month_end_countries_last %>%
+    ungroup() %>%
+    select(max, country) %>%
+    arrange(desc(max)) %>%
+    mutate(max = custom_number_format(max)) %>%
+    plyr::rename(replace = c("max" = "total cumulative cases at the end of last month")))[,c(2,1)],
+  # Then the table formatting with kableExtra
+  format = "html", row.names = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  row_spec(row = 0, color = "#85b7da") %>% 
+  scroll_box(height = "300px")
+
+```
+  
+<br/><br/>
+<br/><br/>
+
+# Changing Trends
+
+``` {r Daily New Cases, include = FALSE}
+
+# Now let's take a look at which months there had been a lot of daily increases in cases across the region, with 'new_avg_agg'
+
+new_avg_agg <- case_region %>% 
+    group_by(date) %>% 
+    summarize(agg_new_cases = sum(new_cases),
+              agg_new_recov = sum(new_recov),
+              agg_new_death = sum(new_death)) %>%
+    mutate(month = floor_date(date, "month")) %>% 
+    group_by(month) %>% 
+    summarize(avg_new_cases = mean(agg_new_cases),
+              avg_new_recov = mean(agg_new_recov),
+              avg_new_death = mean(agg_new_death))
+
+# And here's a few quick conditional outputs to insert into the narrative, depending on whether last month was the worst or if the peak was at another time.
+text_last_month <- custom_number_format(as.integer(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2]))
+
+text_if_last_month_worst <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "the worst month since the start of the pandemic.", "an improvement compared to the peak, in ")
+
+text_worst_month <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", format(as.Date(as.integer(new_avg_agg[match(max(new_avg_agg$avg_new_cases), new_avg_agg$avg_new_cases), 1]), origin = "1970-01-01"), format = "%B %Y"))
+
+text_worst_month_number <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", paste("(", custom_number_format(max(new_avg_agg$avg_new_cases)), "cases)"))
+
+
+```
+
+
+
+## Trends Over Time
+
+Last month, there was an average of `r text_last_month` new cases daily. This is `r text_if_last_month_worst`  `r text_worst_month` `r text_worst_month_number`.
+
+
+``` {r Daily New Cases Plot, echo = FALSE, results = 'HIDE',message = FALSE}
+
+# Here we build an interactive plot using plot_ly
+# First, we reshape the data slightly for our purposes, adding an 'All' to then cooperate with plot_ly's dropdown function
+
+case_region_graph <- case_region %>% group_by(date) %>% summarize(new_cases = sum(new_cases)) %>% cbind(country = c("All"))
+
+case_region_graph <- case_region %>% rbind(case_region_graph) %>% select(country, date, new_cases) %>% arrange(factor(country, levels = c("All")))
+
+
+# Then, a quick function to enable the entry of multiple country dropdowns
+#   this essentially puts it into a list that would work within the plotly
+#   function, without having to retype the function a million times
+cdd <- function(country_number){
+  (list(
+    method = "restyle", 
+    args = list("transforms[0].value",
+                unique(case_region_graph$country)[country_number]),
+    label = unique(case_region_graph$country)[country_number]))}
+
+# Then for the actual plot. Some extra guidelines: https://plotly-r.com/scatter-traces.html#lines
+plot_ly(case_region_graph, 
+        x = ~date, 
+        y = ~new_cases, 
+        type = 'scatter',
+        size = I(0),
+        mode = 'markers',
+        line = list(width = 0.5, color = "#85b7da"),
+        transforms = list(
+                 list(
+                   type = 'filter',
+                   target = ~country,
+                   operation = '=',
+                   value = unique(case_region_graph$country)[1]
+      ))) %>% layout(
+        xaxis = list(title = "Country", zeroline = FALSE,showgrid = FALSE),
+        yaxis = list(title = "New Cases", zeroline = FALSE,showgrid = FALSE),
+        updatemenus = list(
+           list(type = 'dropdown',
+                active = 0,
+  # This lapply function allows us to duplicate our newly created cdd function by the number of countries in the dataframe, without repeating the number many times
+                buttons = lapply(1:(length(unique(case_region_graph$country))), cdd))))
+
+```
+
+
+## Last Month's Trends
+
+``` {r Daily Cases by Country, include = FALSE}
+
+# In the last code chunk, we were able to see aggregate trends in terms of new cases in the region. Now, let's disaggregate by country.
+new_avg_country <- case_region %>% 
+    mutate(month = floor_date(date, "month")) %>% 
+    group_by(month, country) %>% 
+    summarize(avg_new_cases = mean(new_cases),
+              avg_new_recov = mean(new_recov),
+              avg_new_death = mean(new_death)) %>%
+    group_by(country)%>%
+    # we can also add percentage changes over each month
+    mutate(pct_change_case = ((avg_new_cases-lag(avg_new_cases))/
+                           lag(avg_new_cases)*100)) %>%
+    # as well as an additional column "month_change" demonstrating
+    #   the difference in new cases for each country over the months
+    group_by(country)%>%
+    mutate(month_change = 
+             avg_new_cases-lag(avg_new_cases, n=1, default = NA))
+      
+# it will also be useful to just see stats at the latest month
+new_avg_country_latest <- new_avg_country %>%
+    filter(month == floor_date(Sys.Date(), "month") - months(1))%>%
+  arrange(desc(month_change))
+
+new_avg_country_latest
+custom_number_format(148.89631336)
+
+```
+
+In `r format(floor_date(Sys.Date(), "month") - months(1), format = "%B %Y")`, compared with `r format(floor_date(Sys.Date(), "month") - months(2), format = "%B %Y")` there was a notable increase of average daily new cases in  `r  new_avg_country_latest[match(max(new_avg_country_latest$month_change), new_avg_country_latest$month_change), 2]` (`r  custom_number_format(as.integer(new_avg_country_latest[match(max(new_avg_country_latest$month_change), new_avg_country_latest$month_change), 3]))` cases), and  `r  new_avg_country_latest[match(nth(new_avg_country_latest$month_change, 2), new_avg_country_latest$month_change), 2]` (`r  custom_number_format(as.integer(new_avg_country_latest[match(nth(new_avg_country_latest$month_change, 2), new_avg_country_latest$month_change), 3]))` cases). Meanwhile, there was a decrease in `r  new_avg_country_latest[match(min(new_avg_country_latest$month_change), new_avg_country_latest$month_change), 2]` (`r  custom_number_format(as.integer(new_avg_country_latest[match(min(new_avg_country_latest$month_change), new_avg_country_latest$month_change), 3]))` cases), and  `r  new_avg_country_latest[match(nth(new_avg_country_latest$month_change, -2), new_avg_country_latest$month_change), 2]` (`r  custom_number_format(as.integer(new_avg_country_latest[match(nth(new_avg_country_latest$month_change, -2), new_avg_country_latest$month_change), 3]))` cases).
+
+```{r Last Month Trends, echo = FALSE}
+# let's plot it to see the results for the latest months!
+# This plot was useful in the early months of the pandemic, like May 2021
+#   where it was important to see where changes at a month level.
+#   But obviously, it became less relevant as the pandemic dragged on over many
+#     months and with many waves.
+
+ggplotly(
+  (new_avg_country_latest %>%
+    ungroup(country)%>%
+    mutate(country = fct_reorder(country, month_change))%>%
+             ggplot(aes(month_change, country, 
+                        text = paste("In", country, "there was an average of\n", custom_number_format(avg_new_cases), "new daily cases in", format(month, format = "%B"), "which was an increase of\n", custom_number_format(month_change), "average new daily cases compared with the previous month."))) +
+    geom_bar(stat = "identity", aes(fill = month_change>0))+
+    theme_minimal()+
+    labs(x = "Change in average daily new cases", 
+         title = "Where did average daily cases increase/decrease?",
+         subtitle = paste("between", (format(floor_date(Sys.Date()) - months(2), format = "%B %Y")),
+         "and", (format(floor_date(Sys.Date()) - months(1), format = "%B %Y"))))+
+    theme(legend.position = "none",
+          plot.title=element_text(size=10),
+          plot.subtitle=element_text(size=8),
+          axis.title = element_blank())+
+    scale_fill_manual(values=c("#85b7da", "#fcdc5d"))),
+  tooltip = "text"
+)
+
+
+```

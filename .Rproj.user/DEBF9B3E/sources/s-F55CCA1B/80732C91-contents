@@ -1,0 +1,10 @@
+---
+  title: "COVID-19 Regional Monthly Report"
+author: "Clinton Tedja"
+date: "A fully automated and reproducible report. `r format(Sys.time(), '%B %Y')`"
+output: 
+  html_document:
+  toc: true
+toc_float: true
+---
+  
