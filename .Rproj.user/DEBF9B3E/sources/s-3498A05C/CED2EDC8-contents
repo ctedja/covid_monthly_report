@@ -10,25 +10,6 @@ output:
 ---
 
 
-<style>
-body, h1, h2, h3, h4 {
-    font-family: "Open Sans", sans-serif;
-}
-
-body {
-    color: #031c2d;
-}
-h1 {
-    color: #085387;
-}
-a, a:hover {
-    color: #c2dbec;
-}
-pre {
-    font-size: 10px;
-}
-</style>
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
