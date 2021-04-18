@@ -6,13 +6,12 @@ output:
   html_document:
     toc: true
     toc_float: true
-    css: "styles.css"
 ---
 
 
 <style>
 body, h1, h2, h3, h4 {
-    font-family: "Open Sans", sans-serif;
+    font-family: "Open Sans", serif;
 }
 
 body {
@@ -55,7 +54,6 @@ custom_number_format <- function(x){ifelse(x > 999999, paste(format(round((x/100
 
 options(scipen=10000)
 
-# A quick note also that rmarkdown::render_site() is used here
 
 ```
 

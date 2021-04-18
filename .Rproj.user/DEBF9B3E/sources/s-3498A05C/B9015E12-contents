@@ -1,9 +1,9 @@
 body, h1, h2, h3, h4 {
-    font-family: "Open Sans", sans-serif;
+    font-family: "Comic Sans MS"";
 }
 
 body {
-    color: #FFFF00;
+    color: #031c2d;
 }
 h1 {
     color: #085387;
