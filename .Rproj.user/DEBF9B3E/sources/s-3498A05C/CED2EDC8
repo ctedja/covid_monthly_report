@@ -3,7 +3,7 @@
     "path": "~/Documents/R/covid_monthly_report/COVID-19 Regional Monthly Report.Rmd",
     "project_path": "COVID-19 Regional Monthly Report.Rmd",
     "type": "r_markdown",
-    "hash": "1914587283",
+    "hash": "0",
     "contents": "",
     "dirty": false,
     "created": 1618730867670.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "8,21",
+        "cursorPosition": "5,16",
         "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1618731873,
+    "lastKnownWriteTime": 1618732059,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1618731873269,
+    "last_content_update": 1618732059515,
     "read_only": false,
     "read_only_alternatives": []
 }
