@@ -1,6 +1,6 @@
 name: "COVID-19 Regional Monthly Report"
 navbar:
-  title: "Test"
+  title: "COVID-19 Regional Monthly Report"
 output:
   html_document:
     css: styles.css
