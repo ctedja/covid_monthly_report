@@ -217,16 +217,20 @@ new_avg_agg <- case_region %>%
     group_by(month) %>% 
     summarize(avg_new_cases = mean(agg_new_cases),
               avg_new_recov = mean(agg_new_recov),
-              avg_new_death = mean(agg_new_death))
+              avg_new_death = mean(agg_new_death)) %>%
+     filter(month < max(month))
+
+max(new_avg_agg$month)
+summary(case_region$date)
 
 # And here's a few quick conditional outputs to insert into the narrative, depending on whether last month was the worst or if the peak was at another time.
-text_last_month <- custom_number_format(as.integer(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2]))
+text_last_month <- custom_number_format(as.integer(new_avg_agg[match(nth(new_avg_agg$month, -1), new_avg_agg$month), 2]))
 
-text_if_last_month_worst <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "the worst month since the start of the pandemic.", "an improvement compared to the peak, in ")
+text_if_last_month_worst <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -1), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "the worst month since the start of the pandemic.", "an improvement compared to the peak, in ")
 
-text_worst_month <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", format(as.Date(as.integer(new_avg_agg[match(max(new_avg_agg$avg_new_cases), new_avg_agg$avg_new_cases), 1]), origin = "1970-01-01"), format = "%B %Y"))
+text_worst_month <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -1), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", format(as.Date(as.integer(new_avg_agg[match(max(new_avg_agg$avg_new_cases), new_avg_agg$avg_new_cases), 1]), origin = "1970-01-01"), format = "%B %Y"))
 
-text_worst_month_number <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -2), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", paste("(", custom_number_format(max(new_avg_agg$avg_new_cases)), "cases)"))
+text_worst_month_number <- ifelse(new_avg_agg[match(nth(new_avg_agg$month, -1), new_avg_agg$month), 2] == max(new_avg_agg$avg_new_cases), "", paste("(", custom_number_format(max(new_avg_agg$avg_new_cases)), "cases)"))
 
 
 ```
@@ -243,9 +247,16 @@ Last month, there was an average of `r text_last_month` new cases daily. This is
 # Here we build an interactive plot using plot_ly
 # First, we reshape the data slightly for our purposes, adding an 'All' to then cooperate with plot_ly's dropdown function
 
-case_region_graph <- case_region %>% group_by(date) %>% summarize(new_cases = sum(new_cases)) %>% cbind(country = c("All"))
+case_region_graph <- case_region %>% 
+  group_by(date) %>% 
+  summarize(new_cases = sum(new_cases)) %>% 
+  cbind(country = c("All")) 
 
-case_region_graph <- case_region %>% rbind(case_region_graph) %>% select(country, date, new_cases) %>% arrange(factor(country, levels = c("All")))
+case_region_graph <- case_region %>% 
+  rbind(case_region_graph) %>% 
+  select(country, date, new_cases) %>% 
+  arrange(factor(country, levels = c("All"))) %>%
+  filter(date < floor_date(max(case_region$date), 'month'))
 
 
 # Then, a quick function to enable the entry of multiple country dropdowns
