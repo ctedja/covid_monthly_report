@@ -158,6 +158,11 @@ cases_asia_map <- ne_countries(scale = "medium", returnclass = "sf") %>%
   select(max, name, geometry)%>%
   na.omit()
 
+head(ne_countries(scale = "medium", returnclass = "sf"))
+glimpse(cases_month_end_countries_last)
+
+class(cases_asia_map)
+
 cases_asia_map <- cbind(cases_asia_map, st_coordinates(st_centroid(cases_asia_map)))
 
 
@@ -330,7 +335,7 @@ In `r format(floor_date(Sys.Date(), "month") - months(1), format = "%B %Y")`, co
 
 ```{r Last Month Trends, echo = FALSE}
 # let's plot it to see the results for the latest months!
-# This plot was useful in the early months of the pandemic, like May 2021
+# This plot was useful in the early months of the pandemic, like May 2020
 #   where it was important to see where changes at a month level.
 #   But obviously, it became less relevant as the pandemic dragged on over many
 #     months and with many waves.
