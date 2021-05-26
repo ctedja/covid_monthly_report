@@ -146,7 +146,7 @@ cases_month_end_countries_last <- cases_month_end_countries %>%
 
 
 # Overview
-The number of cumulative COVID-19 cases in operational and oversight countries in the region at the end of `r format(floor_date(Sys.Date(), "month") - months(1), format = "%B %Y")`, stood at `r custom_number_format(nth(cases_month_end_agg$max, -2))`. This is an increase of `r custom_number_format(nth(cases_month_end_agg$max, -2) - nth(cases_month_end_agg$max, -3))` compared with the end of `r (format(floor_date(Sys.Date()) - months(2), format = "%B %Y"))`. The two countries with the highest number of cases were `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -1), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -1))` cases) followed by `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -2), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -2))`). 
+The number of cumulative COVID-19 cases in operational and oversight countries in the region at the end of `r format(floor_date(Sys.Date(), "month") - months(1), format = "%B %Y")`, stood at `r custom_number_format(nth(cases_month_end_agg$max, -2))`. This is a change of `r custom_number_format(nth(cases_month_end_agg$max, -2) - nth(cases_month_end_agg$max, -3))` compared with the end of `r (format(floor_date(Sys.Date()) - months(2), format = "%B %Y"))`. The two countries with the highest number of cases were `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -1), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -1))` cases) followed by `r cases_month_end_countries_last[match(nth(cases_month_end_countries_last$max, -2), cases_month_end_countries_last$max), 2]` (`r custom_number_format(nth(cases_month_end_countries_last$max, -2))`). 
 
 
 ```{r Building the Map, echo = FALSE, results = 'HIDE',message = FALSE, warning = FALSE}
@@ -345,7 +345,7 @@ ggplotly(
     ungroup(country)%>%
     mutate(country = fct_reorder(country, month_change))%>%
              ggplot(aes(month_change, country, 
-                        text = paste("In", country, "there was an average of\n", custom_number_format(avg_new_cases), "new daily cases in", format(month, format = "%B"), "which was an increase of\n", custom_number_format(month_change), "average new daily cases compared with the previous month."))) +
+                        text = paste("In", country, "there was an average of\n", custom_number_format(avg_new_cases), "new daily cases in", format(month, format = "%B"), "which was an change of\n", custom_number_format(month_change), "average new daily cases compared with the previous month."))) +
     geom_bar(stat = "identity", aes(fill = month_change>0))+
     theme_minimal()+
     labs(x = "Change in average daily new cases", 
