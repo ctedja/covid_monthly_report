@@ -1,4 +1,4 @@
-# covid_monthly_report
+# COVID-19 Monthly Report: A Framework
 An R Markdown monthly report to analyse COVID-19 trends across a customisable selection of countries.
 
 The code can be viewed in this .rmd markdown file [here](https://github.com/ctedja/covid_monthly_report/blob/main/COVID-19%20Regional%20Monthly%20Report.Rmd).
